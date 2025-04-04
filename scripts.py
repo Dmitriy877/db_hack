@@ -34,24 +34,21 @@ def check_name(name):
     try:
         return Schoolkid.objects.get(full_name__contains=name)
     except Schoolkid.MultipleObjectsReturned:
-        return "Введено неуникальное имя, уточните Ф.И.О"
+        raise Schoolkid.MultipleObjectsReturned("Введено неуникальное имя, уточните Ф.И.О")
     except Schoolkid.DoesNotExist:
-        return "Пользоваеля с таким именем не существует. Проверьте правильность введенного Ф.И.О"
+        raise Schoolkid.DoesNotExist("Пользоваеля с таким именем не существует. Проверьте правильность введенного Ф.И.О")
 
 
 def check_subject(subject):
     try:
         return Subject.objects.get(title__contains=subject)
     except Subject.DoesNotExist:
-        return "Введено некорректное имя предмета"
+        raise Subject.DoesNotExist("Введено некорректное имя предмета")
 
 
 def fix_marks(schoolkid):
-    marks_bad = Mark.objects.filter(schoolkid=schoolkid, points__in=[2, 3])
-    for mark in marks_bad:
-        mark.points = 5
-        mark.save()
-
+    Mark.objects.filter(schoolkid=schoolkid, points__in=[2, 3]).update(points=5)
+    
 
 def remove_chastiments(schoolkid):
     chastiments = Chastisement.objects.filter(schoolkid=schoolkid)
@@ -60,8 +57,6 @@ def remove_chastiments(schoolkid):
 
 def create_commendation(schoolkid, subject):
     commendation = random.choice(COMMENDATIONS)
-
-    schoolkid = Schoolkid.objects.get(full_name__contains=schoolkid)
     
     lesson_last = Lesson.objects.filter(
         subject__title=subject,
@@ -69,10 +64,14 @@ def create_commendation(schoolkid, subject):
         group_letter=schoolkid.group_letter
         ).order_by("-date").first()
     
-    Commendation.objects.create(
-        text=commendation,
-        created=lesson_last.date,
-        schoolkid=schoolkid,
-        subject=lesson_last.subject,
-        teacher=lesson_last.teacher
-        )
+    if lesson_last:
+
+        Commendation.objects.create(
+            text=commendation,
+            created=lesson_last.date,
+            schoolkid=schoolkid,
+            subject=lesson_last.subject,
+            teacher=lesson_last.teacher
+            )
+    else:
+        print("Урок не существует!")
